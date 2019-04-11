@@ -1,12 +1,14 @@
 import logging
 import numpy as np
 import pandas as pd
-from pyspark.sql.types import IntegerType
+from pyspark.sql.types import *
+from pyspark.sql import functions as F
 from pyspark.ml.recommendation import ALS
 import matplotlib.pyplot as plt
 import pyspark as ps
 from sklearn.model_selection import train_test_split
-from noah_cleaning import get_frames
+from ALS_cleaning import get_frames1
+from collections import defaultdict
 
 class MovieRecommender():
     """Template class for a Movie Recommender system."""
@@ -26,7 +28,7 @@ class MovieRecommender():
         #self.train_users = set()
         #self.train_movies = set()
 
-    def fit(self, ratings):
+    def fit(self, ratings, mov = final_dict["movie_data"]):
         """
         Trains the recommender on a given set of ratings.
 
@@ -50,16 +52,20 @@ class MovieRecommender():
         )
         sc = spark.sparkContext
         '''
-
+        self.ratings=ratings
+        self.mov=mov
         X = ratings[['user','movie','rating']]
 
         self.training_means = X['rating'].mean()
 
         self.movie_means = X.groupby('movie')['rating'].mean()
         self.user_means = X.groupby('user')['rating'].mean()
-
-
         
+        self.r1 = ratings.groupby(["genre","user"]).mean()['rating']
+        self.r2 = ratings.groupby('movie').mean()['rating']
+        self.r3 = ratings.groupby("user").mean()['rating']
+        self.r4 = ratings.rating.mean()
+                
         spark_df = self.spark.createDataFrame(X)
 
         #alter regularization and rank(k)
@@ -77,14 +83,17 @@ class MovieRecommender():
         self.logger.debug("finishing fit")
         return(self)
 
-    def fill_na(self,n):
-        if (n.user not in self.user_means) and (n.movie not in self.movie_means):
-            final = self.training_means
-        elif n.movie not in self.user_means:
-            final = self.user_means.loc[n.user]
+    def nulls(self,n):
+        if n.user not in self.ratings.user.unique() or n.movie not in self.mov.movie:
+            return r4
+        elif n.user in r1[self.mov.genre[n.movie]]:
+            return r1[self.mov.genre[n.movie]][n.user]
+        elif n.movie in r2:
+            return r2[n.movie]
+        elif n.movie in r3:
+            return r3[n.movie]
         else:
-            final = self.movie_means.loc[n.movie]
-        return final
+            return r4
 
     def transform(self, requests):
         """
@@ -110,14 +119,15 @@ class MovieRecommender():
         pd_y_pred['rating']=pd_y_pred['prediction']
         pd_y_pred=pd_y_pred.drop('prediction',axis=1)
         #modify this to fill according to the RF
-        pd_y_pred['rating'] = pd_y_pred.apply(lambda x: self.fill_na(x) if (pd.isnull(x.rating)) else x['rating'], axis = 1)
+        test = pd_y_pred.apply(lambda x: self.nulls(x) if pd.isnull(x.prediction) else x['prediction'], axis = 1)
+        pd_y_pred['rating'] = test 
+        #pd_y_pred['rating'] = pd_y_pred.apply(lambda x: self.fill_na(x) if (pd.isnull(x.rating)) else x['rating'], axis = 1)
 
 
         #pd_y_pred = pd_y_pred.fillna(3.2)
 
         self.logger.debug("finishing predict")
         return(pd_y_pred)
-
 
 
 if __name__ == "__main__":
@@ -132,12 +142,10 @@ if __name__ == "__main__":
     sc = spark.sparkContext
     '''
 
-    final_dict = get_frames('../data/training')
+    final_dict = get_frames1('../data/training',test_file=False)
     ratings = final_dict['total_frame']
 
-    final_test = get_frames('../data/requests.csv')
+    final_test = get_frames1('../data/requests.csv',test_file=False)
     requests = final_dict['total_frame']
 
-    #we get ratings df from noahs script, then:
-    #full df = ratings
-    #train_df, test_df = spark_df.randomSplit([0.8, 0.2], seed=427471138)
+    mov = final_dict["movie_data"]
