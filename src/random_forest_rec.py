@@ -12,6 +12,7 @@ def predict(movies):
 
 
 	print("Movies:", movies)
+	#all unique movies
 	single_movies = movie_data.drop(['title'], axis=1).drop_duplicates()
 
 	use = [(m in movies) for m in single_movies.movie.values]
@@ -25,9 +26,12 @@ def predict(movies):
 											'movie'], 
 											axis=1).drop_duplicates()
 
+	#training movie ratings
 	y_train = movie_rating.rating.values
 
 	movies = movie_rating.movie
+
+	#drop other columns
 	movie_rating.drop(['rating', 'title', 'timestamp', 'user', 'movie'], axis=1, inplace=True)
 
 	X_train = movie_rating.values
@@ -40,7 +44,7 @@ def predict(movies):
 
 	return rf.predict(single_movies)
 
-
+#averages for the ratings
 def avg(df):
 	df['avg'] = df.apply(lambda x: x['rating'] 
 						if math.isnan(x['avg_rating']) 
@@ -103,7 +107,8 @@ df.drop(['rating', 'avg_rating', 'n_ratings'], axis=1, inplace=True)
 df['rating'] = df['avg']
 df.drop(['avg'],axis=1, inplace=True)
 
-df.to_csv('../data/sub.csv', index=False)
+#predictions of all entries in test
+df.to_csv('../results/sub.csv', index=False)
 
 
 

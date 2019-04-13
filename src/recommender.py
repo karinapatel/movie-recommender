@@ -16,7 +16,7 @@ class MovieRecommender():
     def __init__(self):
         """Constructs a MovieRecommender"""
         self.logger = logging.getLogger('reco-cs')
-        # ...
+        # start spark up
         self.model=None
 
         self.spark = (ps.sql.SparkSession.builder 
@@ -25,7 +25,6 @@ class MovieRecommender():
         .getOrCreate()
         )
         self.sc = self.spark.sparkContext
-
 
     def fit(self, ratings, mov = final_dict["movie_data"]):
         """
@@ -51,20 +50,22 @@ class MovieRecommender():
         )
         sc = spark.sparkContext
         '''
+        #training data
         self.ratings=ratings
         self.mov=mov
+        #subset of data used for ALS
         X = ratings[['user','movie','rating']]
 
+        #get overall training mean
         self.training_means = X['rating'].mean()
 
-        self.movie_means = X.groupby('movie')['rating'].mean()
-        self.user_means = X.groupby('user')['rating'].mean()
-        
+        #get means to fill the Nans
         self.r1 = ratings.groupby(["genre","user"]).mean()['rating']
         self.r2 = ratings.groupby('movie').mean()['rating']
         self.r3 = ratings.groupby("user").mean()['rating']
         self.r4 = ratings.rating.mean()
-                
+
+        #convert X to spark df      
         spark_df = self.spark.createDataFrame(X)
 
         #alter regularization and rank(k)
@@ -77,11 +78,12 @@ class MovieRecommender():
         rank=15)
 
         self.model = als_model.fit(spark_df)
-        # ...
+        
 
         self.logger.debug("finishing fit")
         return(self)
 
+    #fill nulls with user mean, movie mean, or training mean
     def nulls(self,n):
         if n.user not in self.ratings.user.unique() or n.movie not in self.mov.movie:
             return r4
@@ -110,20 +112,21 @@ class MovieRecommender():
         """
         self.logger.debug("starting predict")
         self.logger.debug("request count: {}".format(requests.shape[0]))
+        #test data
         X = requests[['user','movie']]
+        #convert to spark df
         spark_df = self.spark.createDataFrame(X)
 
+        #transform predictions to pandas df
         y_pred = self.model.transform(spark_df)
         pd_y_pred = y_pred.toPandas()
+        #format df for output scoring
         pd_y_pred['rating']=pd_y_pred['prediction']
         pd_y_pred=pd_y_pred.drop('prediction',axis=1)
         #modify this to fill according to the RF
         test = pd_y_pred.apply(lambda x: self.nulls(x) if pd.isnull(x.prediction) else x['prediction'], axis = 1)
+        #fill rating column
         pd_y_pred['rating'] = test 
-        #pd_y_pred['rating'] = pd_y_pred.apply(lambda x: self.fill_na(x) if (pd.isnull(x.rating)) else x['rating'], axis = 1)
-
-
-        #pd_y_pred = pd_y_pred.fillna(3.2)
 
         self.logger.debug("finishing predict")
         return(pd_y_pred)
@@ -140,11 +143,13 @@ if __name__ == "__main__":
         )
     sc = spark.sparkContext
     '''
-
+    #training data
     final_dict = get_frames1('../data/training',test_file=False)
     ratings = final_dict['total_frame']
 
+    #test data
     final_test = get_frames1('../data/requests.csv',test_file=False)
     requests = final_dict['total_frame']
 
+    #movie data
     mov = final_dict["movie_data"]
