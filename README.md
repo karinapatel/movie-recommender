@@ -85,7 +85,7 @@ user,movie,rating
 ## Modeling and Results
 The initial plan was to build an ALS model to predict the ratings: fill Nan any values with 3.2
 
-- We first merged all the data on the ID columns in the case that we wanted to use some of these features to help fill in - Nan’s (cold call problem)
+- We first merged all the data on the ID columns in the case that we wanted to use some of these features to help fill in Nan’s (cold call problem)
 - If a movie had never been seen: fill with that user’s average rating
 - If a user was new: fill with the movie’s average rating across the rest of the users
 
