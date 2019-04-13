@@ -25,8 +25,7 @@ class MovieRecommender():
         .getOrCreate()
         )
         self.sc = self.spark.sparkContext
-        #self.train_users = set()
-        #self.train_movies = set()
+
 
     def fit(self, ratings, mov = final_dict["movie_data"]):
         """
