@@ -1,27 +1,20 @@
 # Movie Recommender Case Study
 
-We built a recommendation system based off data from the
+The goal of this case study was to build a recommendation system based off data from the
 [MovieLens dataset](http://grouplens.org/datasets/movielens/). It includes movie
-information, user information, and the users' ratings. The goal was to build a
-recommendation system and to suggest movies to users!
+information, user information, and the users' ratings. This project uses recommendation systems to suggest movies to users!
 
 The **movies data** and **user data** are in `data/movies.dat` and `data/users.dat`.
 
-The **ratings data** can be found in `data/training.csv`. The users' ratings have been broken into a training and test set to obtain the testing set, we  split the 20% of **the most recent** ratings.
+The users' ratings have been broken into a training and test set to obtain the testing set, we  split the 20% of **the most recent** ratings.
 
 
 ## Mission 
 
-The **request** file in `data/requests.csv` contains a list of `user,movie` pairs.
 
 Provide a rating for each of those `user,movie` pairs.
 
 The **score** was measured based on how well we predicted the ratings for the users' ratings compared to the test set. 
-
-
-## How to implement the recommender
-
-The file `src/recommender.py` is the main template for creating our recommender.
 
 
 ## How to run your recommender
@@ -89,5 +82,24 @@ user,movie,rating
 4958,1407,1
 ```
 
-## Results
-We were able to get a score of 4.32 by using an ALS model. The logic behind this was to fill the null values with a bit more logic than randomly guessing the mean. In our case, we tried to fill with the user's average rating, the movie's average rating, and if both of those failed, then just the average rating overall.
+## Modeling and Results
+The initial plan was to build an ALS model to predict the ratings: fill Nan any values with 3.2
+
+- We first merged all the data on the ID columns in the case that we wanted to use some of these features to help fill in Nan’s (cold call problem)
+- If a movie had never been seen: fill with that user’s average rating
+- If a user was new: fill with the movie’s average rating across the rest of the users
+
+Upon testing this, we found that the model unfortunately did not perform much stronger than guessing the average. 
+
+The next steps involved strategically filling the Nan values and also incorporatiing data on movies.
+By using a Random Forest model on movie genres and year released averaged with average past rating for each user, we filled any new users with the random forest model prediction to achieve a final score of 4.216.
+
+Additionally, we were able to improve our ALS model to get a score of 4.3. The logic behind this was to fill the null values with a bit more logic than randomly guessing the mean. In our case, we tried to fill with the user's average rating, the movie's average rating, and if both of those failed, then just the average rating overall.
+
+## Future Steps
+- Incorporate user features into RF model
+- Consider different weighting options when combining RF predictions with past user ratings
+- Some users’ past ratings was based on more information than other
+- Figure out a way to combine matrix factorization approach with RF model (use movie topic latent factors into RF model)
+
+
